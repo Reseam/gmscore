@@ -18,6 +18,7 @@ android {
         versionCode vendingAppVersionCode
         minSdkVersion androidMinSdk
         targetSdkVersion androidTargetSdk
+        manifestPlaceholders = [vendorGroupId: vendorGroupId]
 
         multiDexEnabled true
     }

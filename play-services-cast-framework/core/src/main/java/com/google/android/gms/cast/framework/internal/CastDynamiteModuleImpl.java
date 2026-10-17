@@ -16,7 +16,6 @@
 
 package com.google.android.gms.cast.framework.internal;
 
-import android.content.Context;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -28,10 +27,6 @@ import com.google.android.gms.cast.framework.IReconnectionService;
 import com.google.android.gms.cast.framework.ISession;
 import com.google.android.gms.cast.framework.ISessionProxy;
 import com.google.android.gms.cast.framework.media.CastMediaOptions;
-import com.google.android.gms.cast.framework.internal.CastContextImpl;
-import com.google.android.gms.cast.framework.internal.CastSessionImpl;
-import com.google.android.gms.cast.framework.internal.MediaRouterCallbackImpl;
-import com.google.android.gms.cast.framework.internal.SessionImpl;
 import com.google.android.gms.cast.framework.media.IMediaNotificationService;
 import com.google.android.gms.cast.framework.media.internal.IFetchBitmapTask;
 import com.google.android.gms.cast.framework.media.internal.IFetchBitmapTaskProgressPublisher;
@@ -65,13 +60,21 @@ public class CastDynamiteModuleImpl extends ICastDynamiteModule.Stub {
 
     @Override
     public IReconnectionService newReconnectionServiceImpl(IObjectWrapper service, IObjectWrapper sessionManager, IObjectWrapper discoveryManager) throws RemoteException {
-        Log.d(TAG, "unimplemented Method: newReconnectionServiceImpl");
-        return null;
+        return new ReconnectionServiceImpl(service, sessionManager, discoveryManager);
     }
 
     @Override
     public IFetchBitmapTask newFetchBitmapTaskImpl(IObjectWrapper asyncTask, IFetchBitmapTaskProgressPublisher progressPublisher, int i1, int i2, boolean b1, long l1, int i3, int i4, int i5) throws RemoteException {
-        Log.d(TAG, "unimplemented Method: newFetchBitmapTaskImpl");
-        return null;
+        return new FetchBitmapTaskImpl(i1, i2, l1, i5);
+    }
+
+    @Override
+    public IFetchBitmapTask newFetchBitmapTaskImplV2(IObjectWrapper context, IObjectWrapper asyncTask, IFetchBitmapTaskProgressPublisher progressPublisher, int width, int height, boolean crop, long maxBytes, int retries, int retryDelay, int timeout) {
+        return new FetchBitmapTaskImpl(width, height, maxBytes, timeout);
+    }
+
+    @Override
+    public int getSupportedVersion() {
+        return 1;
     }
 }

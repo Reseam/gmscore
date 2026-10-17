@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.microg.gms.utils.ExtendedPackageInfo;
+import org.microg.gms.common.Constants;
 
 /**
  * Originally found in Google Services Framework (com.google.android.gsf), this provides a generic
@@ -48,7 +49,7 @@ import org.microg.gms.utils.ExtendedPackageInfo;
  * if certain "experiments" are enabled on the device.
  */
 public class GServicesProvider extends ContentProvider {
-    public static final Uri CONTENT_URI = Uri.parse("content://com.google.android.gsf.gservices/");
+    public static final Uri CONTENT_URI = Uri.parse("content://" + Constants.VENDOR_GROUP_ID + ".android.gsf.gservices/");
     public static final Uri MAIN_URI = Uri.withAppendedPath(CONTENT_URI, "main");
     public static final Uri OVERRIDE_URI = Uri.withAppendedPath(CONTENT_URI, "override");
     public static final Uri PREFIX_URI = Uri.withAppendedPath(CONTENT_URI, "prefix");
@@ -108,7 +109,7 @@ public class GServicesProvider extends ContentProvider {
         if (packageName == null) return false;
         try {
             String[] requestedPermissions = getContext().getPackageManager().getPackageInfo(packageName, PackageManager.GET_PERMISSIONS).requestedPermissions;
-            return requestedPermissions != null && Arrays.asList(requestedPermissions).contains("com.google.android.providers.gsf.permission.READ_GSERVICES");
+            return requestedPermissions != null && Arrays.asList(requestedPermissions).contains(Constants.VENDOR_GROUP_ID + ".android.providers.gsf.permission.READ_GSERVICES");
         } catch (PackageManager.NameNotFoundException e) {
             return false;
         }

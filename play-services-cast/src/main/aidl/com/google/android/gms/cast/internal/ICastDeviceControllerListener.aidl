@@ -11,11 +11,12 @@ interface ICastDeviceControllerListener {
   // Deprecated: void onStatusReceived(String string1, double double1, boolean boolean1) = 3;
   void onTextMessageReceived(String namespace, String message) = 4;
   void onBinaryMessageReceived(String namespace, in byte[] data) = 5;
-  // void onStatusChanged(int status) = 6; // TODO
-  // void onStatusChanged2(int status) = 7; // TODO
+  void onApplicationStopResult(int status) = 6;
+  void onApplicationLeaveResult(int status) = 7;
   void onApplicationDisconnected(int paramInt) = 8;
   void onSendMessageFailure(String response, long requestId, int statusCode) = 9;
   void onSendMessageSuccess(String response, long requestId) = 10;
   void onApplicationStatusChanged(in ApplicationStatus applicationStatus) = 11;
   void onDeviceStatusChanged(in CastDeviceStatus deviceStatus) = 12;
+  void onConnectedWithResult(int statusCode) = 13;
 }

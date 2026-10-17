@@ -8,6 +8,7 @@ package org.microg.gms.nearby.exposurenotification
 import android.os.ParcelUuid
 import com.google.android.gms.nearby.exposurenotification.CalibrationConfidence
 import java.util.*
+import org.microg.gms.common.Constants
 
 const val TAG = "ExposureNotification"
 val SERVICE_UUID = ParcelUuid(UUID.fromString("0000FD6F-0000-1000-8000-00805F9B34FB"))
@@ -33,7 +34,7 @@ const val CONFIRM_ACTION_STOP = "stop"
 const val CONFIRM_ACTION_KEYS = "keys"
 const val CONFIRM_PERMISSION_VALIDITY = 60 * 60 * 1000L
 
-const val PERMISSION_EXPOSURE_CALLBACK = "com.google.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK"
+const val PERMISSION_EXPOSURE_CALLBACK = "${Constants.VENDOR_GROUP_ID}.android.gms.nearby.exposurenotification.EXPOSURE_CALLBACK"
 
 const val TX_POWER_LOW = -15
 

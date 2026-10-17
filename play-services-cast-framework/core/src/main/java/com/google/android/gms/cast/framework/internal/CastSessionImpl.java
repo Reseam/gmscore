@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013-2017 microG Project Team
+ * Copyright (C) 2026 Cossale <hello@auna.li>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,64 +17,87 @@
 
 package com.google.android.gms.cast.framework.internal;
 
-import com.google.android.gms.cast.framework.ICastSession;
-
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.android.gms.cast.ApplicationMetadata;
+import com.google.android.gms.cast.CastStatusCodes;
 import com.google.android.gms.cast.framework.CastOptions;
 import com.google.android.gms.cast.framework.ICastConnectionController;
-import com.google.android.gms.common.api.Status;
+import com.google.android.gms.cast.framework.ICastSession;
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.dynamic.IObjectWrapper;
 import com.google.android.gms.dynamic.ObjectWrapper;
 
 public class CastSessionImpl extends ICastSession.Stub {
-    private static final String TAG = CastSessionImpl.class.getSimpleName();
-    private CastOptions options;
-    private SessionImpl session;
-    private ICastConnectionController controller;
+    private static final String TAG = "GmsCastSession";
+    private final CastOptions options;
+    private final SessionImpl session;
+    private final ICastConnectionController controller;
+    private boolean stopReceiver;
 
-    public CastSessionImpl(CastOptions options, IObjectWrapper session, ICastConnectionController controller) throws RemoteException {
+    public CastSessionImpl(CastOptions options, IObjectWrapper session, ICastConnectionController controller) {
         this.options = options;
         this.session = (SessionImpl) ObjectWrapper.unwrap(session);
         this.controller = controller;
-
+        stopReceiver = options.getStopReceiverApplicationWhenEndingSession();
         this.session.setCastSession(this);
     }
 
-    public void launchApplication() throws RemoteException {
-        this.controller.launchApplication(this.options.getReceiverApplicationId(), this.options.getLaunchOptions());
-    }
-
     @Override
-    public void onConnected(Bundle routeInfoExtra) throws RemoteException {
-        this.controller.launchApplication(this.options.getReceiverApplicationId(), this.options.getLaunchOptions());
+    public void onConnected(Bundle extras) throws RemoteException {
+        if (session.isResuming() && session.getSessionId() != null) {
+            controller.joinApplication(options.getReceiverApplicationId(), session.getSessionId());
+        } else if (session.isConnecting()) {
+            controller.launchApplication(options.getReceiverApplicationId(), options.getLaunchOptions());
+        }
     }
 
     @Override
     public void onConnectionSuspended(int reason) {
-        Log.d(TAG, "unimplemented Method: onConnectionSuspended");
+        session.notifySessionSuspended(reason);
     }
 
     @Override
-    public void onConnectionFailed(Status status) {
-        Log.d(TAG, "unimplemented Method: onConnectionFailed");
+    public void onConnectionFailed(ConnectionResult result) {
+        session.onApplicationConnectionFailure(result == null ? CastStatusCodes.INTERNAL_ERROR : result.getErrorCode());
     }
 
     @Override
-    public void onApplicationConnectionSuccess(ApplicationMetadata applicationMetadata, String applicationStatus, String sessionId, boolean wasLaunched) {
-        this.session.onApplicationConnectionSuccess(applicationMetadata, applicationStatus, sessionId, wasLaunched);
+    public void onApplicationConnectionSuccess(ApplicationMetadata metadata, String status, String sessionId, boolean launched) {
+        session.onApplicationConnectionSuccess(metadata, status, sessionId, launched);
     }
 
     @Override
     public void onApplicationConnectionFailure(int statusCode) {
-        this.session.onApplicationConnectionFailure(statusCode);
+        session.onApplicationConnectionFailure(statusCode);
     }
 
     @Override
-    public void disconnectFromDevice(boolean boolean1, int int1) {
-        Log.d(TAG, "unimplemented Method: disconnectFromDevice");
+    public void disconnectFromDevice(boolean stopCasting, int reason) {
+        if (session.isDisconnected()) return;
+        try {
+            if ((stopCasting || stopReceiver) && session.getSessionId() != null) {
+                controller.stopApplication(session.getSessionId());
+            }
+        } catch (RemoteException e) {
+            Log.w(TAG, "Error stopping receiver application", e);
+        } finally {
+            session.notifySessionEnded(reason);
+        }
+    }
+
+    void closeConnection(int reason) {
+        try {
+            controller.closeConnection(reason);
+        } catch (RemoteException e) {
+            Log.w(TAG, "Error closing Cast connection", e);
+        }
+    }
+
+    @Override
+    public void setStopReceiverApplicationWhenEndingSession(boolean stopReceiver) {
+        this.stopReceiver = stopReceiver;
     }
 }
