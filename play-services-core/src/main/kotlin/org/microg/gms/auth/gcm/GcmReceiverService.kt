@@ -22,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.PendingIntentCompat
 import androidx.legacy.content.WakefulBroadcastReceiver
+import com.google.android.gms.BuildConfig
 import com.google.android.gms.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -160,7 +161,7 @@ class GcmReceiverService : ReceiverService(TAG) {
         val content = notificationData.content ?: return
         val intentExtras = notificationData.intentActions?.primaryPayload?.extras ?: return
         val intent = Intent(this, MainActivity::class.java).apply {
-            `package` = Constants.GMS_PACKAGE_NAME
+            `package` = BuildConfig.APPLICATION_ID
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
             intentExtras.forEach { putExtra(it.key, it.value_) }
             putExtra(KEY_NOTIFICATION_ID, notificationId)

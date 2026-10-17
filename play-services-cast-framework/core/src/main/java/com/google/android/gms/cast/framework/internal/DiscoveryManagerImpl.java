@@ -16,53 +16,70 @@
 
 package com.google.android.gms.cast.framework.internal;
 
+import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.android.gms.cast.framework.IDiscoveryManager;
 import com.google.android.gms.cast.framework.IDiscoveryManagerListener;
-import com.google.android.gms.cast.framework.internal.CastContextImpl;
 import com.google.android.gms.dynamic.IObjectWrapper;
 import com.google.android.gms.dynamic.ObjectWrapper;
 
-import java.util.Set;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DiscoveryManagerImpl extends IDiscoveryManager.Stub {
-    private static final String TAG = DiscoveryManagerImpl.class.getSimpleName();
+    private static final String TAG = "GmsCastDiscovery";
+    private final CastContextImpl context;
+    private final RemoteCallbackList<IDiscoveryManagerListener> listeners = new RemoteCallbackList<>();
+    private boolean available;
 
-    private CastContextImpl castContextImpl;
-
-    private Set discoveryManagerListeners = new HashSet();
-
-    public DiscoveryManagerImpl(CastContextImpl castContextImpl) {
-        this.castContextImpl = castContextImpl;
+    public DiscoveryManagerImpl(CastContextImpl context) {
+        this.context = context;
     }
 
     @Override
     public void startDiscovery() {
-        Log.d(TAG, "unimplemented Method: startDiscovery");
+        context.requestDiscovery(true);
     }
 
     @Override
     public void stopDiscovery() {
-        Log.d(TAG, "unimplemented Method: stopDiscovery");
+        context.requestDiscovery(false);
     }
 
     @Override
     public void addDiscoveryManagerListener(IDiscoveryManagerListener listener) {
-        Log.d(TAG, "unimplemented Method: addDiscoveryManagerListener");
-        this.discoveryManagerListeners.add(listener);
+        if (listener != null) listeners.register(listener);
     }
 
     @Override
     public void removeDiscoveryManagerListener(IDiscoveryManagerListener listener) {
-        Log.d(TAG, "unimplemented Method: removeDiscoveryManagerListener");
-        this.discoveryManagerListeners.remove(listener);
+        if (listener != null) listeners.unregister(listener);
+    }
+
+    void onDeviceAvailabilityChanged(boolean available) {
+        if (this.available == available) return;
+        this.available = available;
+        List<IDiscoveryManagerListener> callbacks = new ArrayList<>();
+        int count = listeners.beginBroadcast();
+        for (int i = 0; i < count; i++) callbacks.add(listeners.getBroadcastItem(i));
+        listeners.finishBroadcast();
+        for (IDiscoveryManagerListener listener : callbacks) {
+            try {
+                listener.onDeviceAvailabilityChanged(available);
+            } catch (RemoteException e) {
+                Log.w(TAG, "Error notifying device availability", e);
+            }
+        }
+    }
+
+    void destroy() {
+        listeners.kill();
     }
 
     @Override
-    public IObjectWrapper getWrappedThis() throws RemoteException {
+    public IObjectWrapper getWrappedThis() {
         return ObjectWrapper.wrap(this);
     }
 }

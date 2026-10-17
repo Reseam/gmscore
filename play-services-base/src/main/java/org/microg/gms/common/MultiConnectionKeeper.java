@@ -113,6 +113,7 @@ public class MultiConnectionKeeper {
     }
 
     private String getTargetPackageWithoutPref() {
+        if (USER_MICROG_PACKAGE_NAME.equals(context.getPackageName())) return USER_MICROG_PACKAGE_NAME;
         // Pref: gms > microG > self
         PackageManager pm = context.getPackageManager();
         try {
@@ -254,7 +255,7 @@ public class MultiConnectionKeeper {
                         if (requireMicrog && !isMicrog(resolveInfo)) {
                             Log.w(TAG, "GMS service found for " + actionString + " but looks not like microG");
                         } else {
-                            if (isSystemGoogleOrMicrogSig(pm, targetPackage)){
+                            if (isSystemGoogleOrMicrogSig(pm, targetPackage)) {
                                 Log.d(TAG, "GMS service found for " + actionString);
                                 return intent;
                             } else {
@@ -298,7 +299,7 @@ public class MultiConnectionKeeper {
             if (resolveInfo == null || resolveInfo.serviceInfo == null) return false;
             if (resolveInfo.serviceInfo.name.startsWith("org.microg.")) return true;
             try {
-                PermissionInfo info = context.getPackageManager().getPermissionInfo("org.microg.gms.EXTENDED_ACCESS", 0);
+                PermissionInfo info = context.getPackageManager().getPermissionInfo(Constants.VENDOR_GROUP_ID + ".org.microg.gms.EXTENDED_ACCESS", 0);
                 return info.packageName.equals(resolveInfo.serviceInfo.packageName);
             } catch (PackageManager.NameNotFoundException e) {
                 return false;

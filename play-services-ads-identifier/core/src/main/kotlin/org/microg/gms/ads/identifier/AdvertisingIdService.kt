@@ -17,6 +17,7 @@ import com.google.android.gms.ads.identifier.internal.IAdvertisingIdService
 import org.microg.gms.common.GooglePackagePermission
 import org.microg.gms.common.PackageUtils
 import java.util.UUID
+import org.microg.gms.common.Constants
 
 const val TAG = "AdvertisingId"
 const val EMPTY_AD_ID = "00000000-0000-0000-0000-000000000000"
@@ -64,7 +65,7 @@ abstract class AdvertisingIdConfiguration(private val context: Context) {
             for (packageName in packageNames) {
                 val applicationInfo = context.packageManager.getApplicationInfo(packageName, 0)
                 if (applicationInfo.targetSdkVersion > 33) {
-                    if (context.packageManager.checkPermission("com.google.android.gms.permission.AD_ID", packageName) == PackageManager.PERMISSION_DENIED) {
+                    if (context.packageManager.checkPermission("${Constants.VENDOR_GROUP_ID}.android.gms.permission.AD_ID", packageName) == PackageManager.PERMISSION_DENIED) {
                         throw SecurityException("Permission not granted")
                     }
                 }

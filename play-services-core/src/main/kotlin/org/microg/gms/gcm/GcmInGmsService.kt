@@ -69,7 +69,7 @@ class GcmInGmsService : LifecycleService() {
                     handleIntent(intent)
                 } else {
                     val intent = Intent(ACTION_GCM_RECONNECT).apply {
-                        setPackage(Constants.GMS_PACKAGE_NAME)
+                        setPackage(BuildConfig.APPLICATION_ID)
                     }
                     sendBroadcast(intent)
                 }
@@ -101,7 +101,7 @@ class GcmInGmsService : LifecycleService() {
             GcmConstants.ACTION_C2DM_RECEIVE -> {
                 Log.d(TAG, "start handle gcm message")
                 val callerIntent = Intent(ACTION_GCM_MESSAGE_RECEIVE)
-                callerIntent.setPackage(Constants.GMS_PACKAGE_NAME)
+                callerIntent.setPackage(BuildConfig.APPLICATION_ID)
                 callerIntent.putExtras(intent)
                 sendOrderedBroadcast(callerIntent, null)
             }
@@ -134,9 +134,9 @@ class GcmInGmsService : LifecycleService() {
         }
         Log.d(TAG, "updateGroupsWithAccount extras: $extras")
         val intent = Intent(GcmConstants.ACTION_GCM_SEND).apply {
-            setPackage(Constants.GMS_PACKAGE_NAME)
+            setPackage(BuildConfig.APPLICATION_ID)
             putExtras(extras)
-            putExtra(GcmConstants.EXTRA_APP, Intent().apply { setPackage(Constants.GMS_PACKAGE_NAME) }.let { PendingIntentCompat.getBroadcast(this@GcmInGmsService, 0, it, 0, false) })
+            putExtra(GcmConstants.EXTRA_APP, Intent().apply { setPackage(BuildConfig.APPLICATION_ID) }.let { PendingIntentCompat.getBroadcast(this@GcmInGmsService, 0, it, 0, false) })
         }.also {
             it.putExtra(GcmConstants.EXTRA_MESSENGER, Messenger(object : Handler(Looper.getMainLooper()) {
                 override fun handleMessage(msg: Message) {
@@ -212,7 +212,7 @@ class GcmInGmsService : LifecycleService() {
         } else {
             Log.d(TAG, "registerGcmInGms: sendBroadcast: ${intent.action}")
             Intent(intent.action).apply {
-                setPackage(Constants.GMS_PACKAGE_NAME)
+                setPackage(BuildConfig.APPLICATION_ID)
                 putExtras(intent)
             }.let { sendBroadcast(it) }
         }

@@ -21,4 +21,6 @@ interface ICastDynamiteModule {
     IMediaNotificationService newMediaNotificationServiceImpl(in IObjectWrapper service, in IObjectWrapper castContext, in IObjectWrapper resources, in CastMediaOptions options) = 3;
     IReconnectionService newReconnectionServiceImpl(in IObjectWrapper service, in IObjectWrapper sessionManager, in IObjectWrapper discoveryManager) = 4;
     IFetchBitmapTask newFetchBitmapTaskImpl(in IObjectWrapper asyncTask, IFetchBitmapTaskProgressPublisher progressPublisher, int i1, int i2, boolean b1, long l1, int i3, int i4, int i5) = 5;
+    IFetchBitmapTask newFetchBitmapTaskImplV2(in IObjectWrapper context, in IObjectWrapper asyncTask, IFetchBitmapTaskProgressPublisher progressPublisher, int width, int height, boolean crop, long maxBytes, int retries, int retryDelay, int timeout) = 6;
+    int getSupportedVersion() = 7;
 }

@@ -16,35 +16,42 @@
 
 package org.microg.gms.cast;
 
-import android.os.IBinder;
 import android.os.RemoteException;
-import android.os.Parcel;
-import android.util.ArrayMap;
 import android.util.Log;
 
-import com.google.android.gms.cast.CastDevice;
-import com.google.android.gms.cast.internal.ICastDeviceControllerListener;
+import com.google.android.gms.common.Feature;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.common.internal.ConnectionInfo;
 import com.google.android.gms.common.internal.GetServiceRequest;
-import com.google.android.gms.common.internal.BinderWrapper;
 import com.google.android.gms.common.internal.IGmsCallbacks;
 
 import org.microg.gms.BaseService;
 import org.microg.gms.common.GmsService;
 
-import su.litvak.chromecast.api.v2.ChromeCast;
-import su.litvak.chromecast.api.v2.ChromeCasts;
-import su.litvak.chromecast.api.v2.Status;
-import su.litvak.chromecast.api.v2.ChromeCastsListener;
-
 public class CastDeviceControllerService extends BaseService {
-    private static final String TAG = CastDeviceControllerService.class.getSimpleName();
+    private static final String TAG = "GmsCastDeviceControllerSvc";
+    private static final Feature[] DEVICE_FEATURES = {new Feature("cxless_client_minimal", 1)};
+    private static final Feature[] SERVICE_FEATURES = {new Feature("module_flag_control", 1)};
 
     public CastDeviceControllerService() {
-        super("GmsCastDeviceControllerSvc", GmsService.CAST);
+        super(TAG, GmsService.CAST, GmsService.CAST_API);
     }
 
     @Override
     public void handleServiceRequest(IGmsCallbacks callback, GetServiceRequest request, GmsService service) throws RemoteException {
-        callback.onPostInitComplete(0, new CastDeviceControllerImpl(this, request.packageName, request.extras), null);
+        ConnectionInfo info = new ConnectionInfo();
+        if (service == GmsService.CAST_API) {
+            info.features = SERVICE_FEATURES;
+            callback.onPostInitCompleteWithConnectionInfo(CommonStatusCodes.SUCCESS, new CastServiceImpl(), info);
+            return;
+        }
+        try {
+            info.features = DEVICE_FEATURES;
+            callback.onPostInitCompleteWithConnectionInfo(CommonStatusCodes.SUCCESS,
+                    new CastDeviceControllerImpl(this, request.packageName, request.extras), info);
+        } catch (IllegalArgumentException e) {
+            Log.w(TAG, "Invalid Cast device request", e);
+            callback.onPostInitComplete(CommonStatusCodes.DEVELOPER_ERROR, null, null);
+        }
     }
 }

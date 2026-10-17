@@ -16,53 +16,47 @@
 
 package com.google.android.gms.cast.framework.internal;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.os.RemoteException;
-import android.util.Log;
-
-import com.google.android.gms.cast.CastDevice;
-import com.google.android.gms.cast.framework.ISession;
-import com.google.android.gms.dynamic.IObjectWrapper;
-import com.google.android.gms.dynamic.ObjectWrapper;
 
 public class MediaRouterCallbackImpl extends IMediaRouterCallback.Stub {
-    private static final String TAG = MediaRouterCallbackImpl.class.getSimpleName();
+    private final SessionManagerImpl sessionManager;
 
-    private CastContextImpl castContext;
-
-    public MediaRouterCallbackImpl(CastContextImpl castContext) {
-        this.castContext = castContext;
+    public MediaRouterCallbackImpl(CastContextImpl context) {
+        sessionManager = context.getSessionManagerImpl();
     }
 
     @Override
     public void onRouteAdded(String routeId, Bundle extras) {
-        Log.d(TAG, "unimplemented Method: onRouteAdded");
+        sessionManager.onRouteAdded(routeId, extras);
     }
+
     @Override
     public void onRouteChanged(String routeId, Bundle extras) {
-        Log.d(TAG, "unimplemented Method: onRouteChanged");
+        sessionManager.onRouteAdded(routeId, extras);
     }
+
     @Override
     public void onRouteRemoved(String routeId, Bundle extras) {
-        Log.d(TAG, "unimplemented Method: onRouteRemoved");
+        sessionManager.onRouteRemoved(routeId);
     }
-    @Override
-    public void onRouteSelected(String routeId, Bundle extras) throws RemoteException {
-        CastDevice castDevice = CastDevice.getFromBundle(extras);
 
-        SessionImpl session = (SessionImpl) ObjectWrapper.unwrap(this.castContext.defaultSessionProvider.getSession(null));
-        Bundle routeInfoExtras = this.castContext.getRouter().getRouteInfoExtrasById(routeId);
-        if (routeInfoExtras != null) {
-            session.start(this.castContext, castDevice, routeId, routeInfoExtras);
-        }
+    @Override
+    public void onRouteSelected(String routeId, Bundle extras) {
+        sessionManager.onRouteSelected(routeId, extras);
     }
+
     @Override
     public void unknown(String routeId, Bundle extras) {
-        Log.d(TAG, "unimplemented Method: unknown");
+        sessionManager.onRouteUnselected(routeId);
     }
+
     @Override
     public void onRouteUnselected(String routeId, Bundle extras, int reason) {
-        Log.d(TAG, "unimplemented Method: onRouteUnselected");
+        sessionManager.onRouteUnselected(routeId);
+    }
+
+    @Override
+    public int getSupportedVersion() {
+        return 1;
     }
 }

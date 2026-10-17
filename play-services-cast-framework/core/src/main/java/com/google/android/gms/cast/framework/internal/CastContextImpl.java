@@ -16,139 +16,281 @@
 
 package com.google.android.gms.cast.framework.internal;
 
+import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.util.Log;
 
-import androidx.mediarouter.media.MediaControlIntent;
 import androidx.mediarouter.media.MediaRouteSelector;
+import androidx.mediarouter.media.MediaRouter;
 
 import com.google.android.gms.cast.CastMediaControlIntent;
 import com.google.android.gms.cast.framework.CastOptions;
 import com.google.android.gms.cast.framework.IAppVisibilityListener;
 import com.google.android.gms.cast.framework.ICastContext;
-import com.google.android.gms.cast.framework.IDiscoveryManager;
-import com.google.android.gms.cast.framework.ISessionManager;
 import com.google.android.gms.cast.framework.ISessionProvider;
 import com.google.android.gms.dynamic.IObjectWrapper;
 import com.google.android.gms.dynamic.ObjectWrapper;
 
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-public class CastContextImpl extends ICastContext.Stub {
-    private static final String TAG = CastContextImpl.class.getSimpleName();
+public class CastContextImpl extends ICastContext.Stub implements Application.ActivityLifecycleCallbacks {
+    private static final String TAG = "GmsCastContext";
+    private final Context context;
+    private final CastOptions options;
+    private final IMediaRouter router;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Map<String, ISessionProvider> sessionProviders = new HashMap<>();
+    private final Set<Activity> startedActivities = new HashSet<>();
+    private final RemoteCallbackList<IAppVisibilityListener> visibilityListeners = new RemoteCallbackList<>();
+    private final SessionManagerImpl sessionManager;
+    private final DiscoveryManagerImpl discoveryManager;
+    private final MediaRouterCallbackImpl callback;
+    private volatile MediaRouteSelector mergedSelector;
+    private String receiverApplicationId;
+    private volatile boolean visible = true;
+    private boolean discoveryRequested;
+    private boolean destroyed;
 
-    private SessionManagerImpl sessionManager;
-    private DiscoveryManagerImpl discoveryManager;
-
-    private Context context;
-    private CastOptions options;
-    private IMediaRouter router;
-    private Map<String, ISessionProvider> sessionProviders = new HashMap<String, ISessionProvider>();
-    public ISessionProvider defaultSessionProvider;
-
-    private MediaRouteSelector mergedSelector;
-
-    public CastContextImpl(IObjectWrapper context, CastOptions options, IMediaRouter router, Map<String, IBinder> sessionProviders) throws RemoteException {
-        this.context = (Context) ObjectWrapper.unwrap(context);
+    public CastContextImpl(IObjectWrapper context, CastOptions options, IMediaRouter router, Map<String, IBinder> providers) {
+        Context unwrapped = (Context) ObjectWrapper.unwrap(context);
+        this.context = unwrapped.getApplicationContext();
         this.options = options;
         this.router = router;
-        for (Map.Entry<String, IBinder> entry : sessionProviders.entrySet()) {
-            this.sessionProviders.put(entry.getKey(), ISessionProvider.Stub.asInterface(entry.getValue()));
+        receiverApplicationId = options.getReceiverApplicationId();
+        setProviders(providers);
+        sessionManager = new SessionManagerImpl(this);
+        discoveryManager = new DiscoveryManagerImpl(this);
+        callback = new MediaRouterCallbackImpl(this);
+        runOnMain(() -> {
+            if (this.context instanceof Application) {
+                ((Application) this.context).registerActivityLifecycleCallbacks(this);
+            }
+            registerRouter();
+        });
+    }
+
+    private void setProviders(Map<String, IBinder> providers) {
+        sessionProviders.clear();
+        MediaRouteSelector.Builder builder = new MediaRouteSelector.Builder();
+        for (Map.Entry<String, IBinder> entry : providers.entrySet()) {
+            ISessionProvider provider = ISessionProvider.Stub.asInterface(entry.getValue());
+            if (provider != null) {
+                sessionProviders.put(entry.getKey(), provider);
+                builder.addControlCategory(entry.getKey());
+            }
         }
+        mergedSelector = builder.build();
+    }
 
-        String receiverApplicationId = options.getReceiverApplicationId();
-        String defaultCategory = CastMediaControlIntent.categoryForCast(receiverApplicationId);
+    ISessionProvider getDefaultSessionProvider() {
+        String category = CastMediaControlIntent.categoryForCast(receiverApplicationId);
+        for (Map.Entry<String, ISessionProvider> entry : sessionProviders.entrySet()) {
+            if (entry.getKey().equals(category) || entry.getKey().startsWith(category + "/")) return entry.getValue();
+        }
+        return sessionProviders.size() == 1 ? sessionProviders.values().iterator().next() : null;
+    }
 
-        this.defaultSessionProvider = this.sessionProviders.get(defaultCategory);
+    private void registerRouter() {
+        try {
+            router.registerMediaRouterCallbackImpl(mergedSelector.asBundle(), callback);
+            updateDiscovery();
+        } catch (RemoteException e) {
+            Log.w(TAG, "Error registering Cast router", e);
+        }
+    }
 
-        // TODO: This should incorporate passed options
-        this.mergedSelector = new MediaRouteSelector.Builder()
-            .addControlCategory(MediaControlIntent.CATEGORY_LIVE_VIDEO)
-            .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
-            .addControlCategory(defaultCategory)
-            .build();
+    void requestDiscovery(boolean requested) {
+        runOnMain(() -> {
+            discoveryRequested = requested;
+            updateDiscovery();
+        });
+    }
+
+    private void updateDiscovery() {
+        try {
+            router.removeCallback(mergedSelector.asBundle());
+            if (!destroyed) {
+                int flags = MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY;
+                if (visible || discoveryRequested) flags |= MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN;
+                router.addCallback(mergedSelector.asBundle(), flags);
+            }
+        } catch (RemoteException e) {
+            Log.w(TAG, "Error updating Cast discovery", e);
+        }
     }
 
     @Override
-    public Bundle getMergedSelectorAsBundle() throws RemoteException {
-        return this.mergedSelector.asBundle();
+    public Bundle getMergedSelectorAsBundle() {
+        return mergedSelector.asBundle();
     }
 
     @Override
     public void addVisibilityChangeListener(IAppVisibilityListener listener) {
-        Log.d(TAG, "unimplemented Method: addVisibilityChangeListener");
+        if (listener != null) visibilityListeners.register(listener);
     }
 
     @Override
     public void removeVisibilityChangeListener(IAppVisibilityListener listener) {
-        Log.d(TAG, "unimplemented Method: removeVisibilityChangeListener");
+        if (listener != null) visibilityListeners.unregister(listener);
     }
 
     @Override
-    public boolean isApplicationVisible() throws RemoteException {
-        Log.d(TAG, "unimplemented Method: isApplicationVisible");
-        return true;
+    public boolean isApplicationVisible() {
+        return visible;
+    }
+
+    private void setVisible(boolean visible) {
+        if (this.visible == visible || destroyed) return;
+        this.visible = visible;
+        updateDiscovery();
+        List<IAppVisibilityListener> listeners = new ArrayList<>();
+        int count = visibilityListeners.beginBroadcast();
+        for (int i = 0; i < count; i++) listeners.add(visibilityListeners.getBroadcastItem(i));
+        visibilityListeners.finishBroadcast();
+        for (IAppVisibilityListener listener : listeners) {
+            try {
+                if (visible) listener.onAppEnteredForeground();
+                else listener.onAppEnteredBackground();
+            } catch (RemoteException e) {
+                Log.w(TAG, "Error notifying application visibility", e);
+            }
+        }
+        if (visible) sessionManager.resumeCurrentSession();
     }
 
     @Override
     public SessionManagerImpl getSessionManagerImpl() {
-        if (this.sessionManager == null) {
-            this.sessionManager = new SessionManagerImpl(this);
-        }
-        return this.sessionManager;
+        return sessionManager;
     }
 
     @Override
-    public IDiscoveryManager getDiscoveryManagerImpl() throws RemoteException {
-        if (this.discoveryManager == null) {
-            this.discoveryManager = new DiscoveryManagerImpl(this);
-        }
-        return this.discoveryManager;
+    public DiscoveryManagerImpl getDiscoveryManagerImpl() {
+        return discoveryManager;
     }
 
     @Override
-    public void destroy() throws RemoteException {
-        Log.d(TAG, "unimplemented Method: destroy");
+    public void destroy() {
+        runOnMain(() -> {
+            if (destroyed) return;
+            sessionManager.destroy();
+            destroyed = true;
+            updateDiscovery();
+            try {
+                router.clearCallbacks();
+            } catch (RemoteException e) {
+                Log.w(TAG, "Error clearing Cast callbacks", e);
+            }
+            if (context instanceof Application) ((Application) context).unregisterActivityLifecycleCallbacks(this);
+            startedActivities.clear();
+            discoveryManager.destroy();
+            visibilityListeners.kill();
+        });
     }
 
     @Override
-    public void onActivityResumed(IObjectWrapper activity) throws RemoteException {
-        Log.d(TAG, "unimplemented Method: onActivityResumed");
-
+    public void onActivityResumed(IObjectWrapper activity) {
+        Activity resumed = ObjectWrapper.unwrapTyped(activity, Activity.class);
+        runOnMain(() -> {
+            if (resumed != null) startedActivities.add(resumed);
+            setVisible(true);
+        });
     }
 
     @Override
-    public void onActivityPaused(IObjectWrapper activity) throws RemoteException {
-        Log.d(TAG, "unimplemented Method: onActivityPaused");
+    public void onActivityPaused(IObjectWrapper activity) {
     }
 
     @Override
-    public void setReceiverApplicationId(String receiverApplicationId, Map sessionProvidersByCategory) throws RemoteException {
-        Log.d(TAG, "unimplemented Method: setReceiverApplicationId");
+    public void setReceiverApplicationId(String applicationId, Map providers) {
+        runOnMain(() -> {
+            try {
+                router.removeCallback(mergedSelector.asBundle());
+                router.clearCallbacks();
+            } catch (RemoteException e) {
+                Log.w(TAG, "Error replacing Cast selector", e);
+            }
+            receiverApplicationId = applicationId;
+            setProviders(providers);
+            registerRouter();
+        });
     }
 
     public Context getContext() {
-        return this.context;
+        return context;
     }
 
     public IMediaRouter getRouter() {
-        return this.router;
+        return router;
     }
 
     public MediaRouteSelector getMergedSelector() {
-        return this.mergedSelector;
+        return mergedSelector;
     }
 
     public CastOptions getOptions() {
-        return this.options;
+        return options;
+    }
+
+    String getReceiverApplicationId() {
+        return receiverApplicationId;
+    }
+
+    void runOnMain(Runnable action) {
+        Runnable guarded = () -> {
+            if (!destroyed) action.run();
+        };
+        if (Looper.myLooper() == handler.getLooper()) guarded.run();
+        else handler.post(guarded);
     }
 
     @Override
-    public IObjectWrapper getWrappedThis() throws RemoteException {
+    public IObjectWrapper getWrappedThis() {
         return ObjectWrapper.wrap(this);
+    }
+
+    @Override
+    public void onActivityCreated(Activity activity, Bundle state) {
+    }
+
+    @Override
+    public void onActivityStarted(Activity activity) {
+        startedActivities.add(activity);
+        setVisible(true);
+    }
+
+    @Override
+    public void onActivityResumed(Activity activity) {
+        setVisible(true);
+    }
+
+    @Override
+    public void onActivityPaused(Activity activity) {
+    }
+
+    @Override
+    public void onActivityStopped(Activity activity) {
+        startedActivities.remove(activity);
+        if (startedActivities.isEmpty()) setVisible(false);
+    }
+
+    @Override
+    public void onActivitySaveInstanceState(Activity activity, Bundle state) {
+    }
+
+    @Override
+    public void onActivityDestroyed(Activity activity) {
+        startedActivities.remove(activity);
     }
 }

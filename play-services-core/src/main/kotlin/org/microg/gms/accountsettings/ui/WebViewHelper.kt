@@ -22,6 +22,7 @@ import android.webkit.WebView
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebResourceErrorCompat
 import androidx.webkit.WebViewClientCompat
+import com.google.android.gms.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -129,7 +130,7 @@ class WebViewHelper(private val activity: MainActivity, private val webView: Web
                         val intent = Intent(Intent.ACTION_VIEW, overrideUri).apply { addCategory(Intent.CATEGORY_BROWSABLE) }
                         if (callingPackage?.let { PackageUtils.isGooglePackage(activity, it) } == true) {
                             try {
-                                intent.`package` = GMS_PACKAGE_NAME
+                                intent.`package` = BuildConfig.APPLICATION_ID
                                 activity.startActivity(intent)
                             } catch (e: Exception) {
                                 Log.w(TAG, "Error forwarding to GMS ", e)

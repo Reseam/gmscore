@@ -16,78 +16,98 @@
 
 package org.microg.gms.cast;
 
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.Uri;
-import android.os.Bundle;
-import android.os.AsyncTask;
-import android.os.Handler;
 import android.util.Log;
 
 import androidx.mediarouter.media.MediaRouteProvider;
-import androidx.mediarouter.media.MediaRouter;
 
-import com.google.android.gms.common.images.WebImage;
 import com.google.android.gms.cast.CastDevice;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Inet4Address;
-import java.net.UnknownHostException;
 import java.io.IOException;
-import java.lang.Thread;
-import java.lang.Runnable;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
+import java.security.GeneralSecurityException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import su.litvak.chromecast.api.v2.ChromeCast;
-import su.litvak.chromecast.api.v2.ChromeCasts;
 import su.litvak.chromecast.api.v2.Status;
-import su.litvak.chromecast.api.v2.ChromeCastsListener;
 
 public class CastMediaRouteController extends MediaRouteProvider.RouteController {
-    private static final String TAG = CastMediaRouteController.class.getSimpleName();
+    private static final String TAG = "GmsCastRouteController";
+    private final CastMediaRouteProvider provider;
+    private final String routeId;
+    private final ChromeCast chromecast;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private boolean released;
 
-    private CastMediaRouteProvider provider;
-    private String routeId;
-    private ChromeCast chromecast;
-
-    public CastMediaRouteController(CastMediaRouteProvider provider, String routeId, String address) {
-        super();
-
+    public CastMediaRouteController(CastMediaRouteProvider provider, String routeId, CastDevice device) {
         this.provider = provider;
         this.routeId = routeId;
-        this.chromecast = new ChromeCast(address);
+        chromecast = new ChromeCast(device.getAddress(), device.getServicePort() > 0 ? device.getServicePort() : 8009);
+        chromecast.setAutoReconnect(false);
     }
 
-    public boolean onControlRequest(Intent intent, MediaRouter.ControlRequestCallback callback) {
-        Log.d(TAG, "unimplemented Method: onControlRequest: " + this.routeId);
-        return false;
-    }
-
-    public void onRelease() {
-        Log.d(TAG, "unimplemented Method: onRelease: " + this.routeId);
-    }
-
+    @Override
     public void onSelect() {
-        Log.d(TAG, "unimplemented Method: onSelect: " + this.routeId);
+        if (released) return;
+        provider.setSelected(routeId, true);
+        updateVolume(null, 0);
     }
 
+    @Override
     public void onSetVolume(int volume) {
-        Log.d(TAG, "unimplemented Method: onSetVolume: " + this.routeId);
+        updateVolume(Math.max(0, Math.min(20, volume)) / 20f, 0);
     }
 
-    public void onUnselect() {
-        Log.d(TAG, "unimplemented Method: onUnselect: " + this.routeId);
-    }
-
-    public void onUnselect(int reason) {
-        Log.d(TAG, "unimplemented Method: onUnselect: " + this.routeId);
-    }
-
+    @Override
     public void onUpdateVolume(int delta) {
-        Log.d(TAG, "unimplemented Method: onUpdateVolume: " + this.routeId);
+        updateVolume(null, delta / 20f);
+    }
+
+    private void updateVolume(Float volume, float delta) {
+        if (released) return;
+        executor.execute(() -> {
+            try {
+                if (!chromecast.isConnected()) {
+                    chromecast.connect();
+                    chromecast.setRequestTimeout(10000);
+                }
+                if (volume != null) chromecast.setVolume(volume);
+                else if (delta != 0) chromecast.setVolumeByIncrement(delta);
+                Status status = chromecast.getStatus();
+                if (status.volume != null && status.volume.level != null) {
+                    provider.setVolume(routeId, Math.round(status.volume.level * 20));
+                }
+            } catch (IOException | GeneralSecurityException e) {
+                Log.w(TAG, "Error updating Cast volume", e);
+            }
+        });
+    }
+
+    @Override
+    public void onUnselect() {
+        if (released) return;
+        provider.setSelected(routeId, false);
+        executor.execute(this::disconnect);
+    }
+
+    @Override
+    public void onUnselect(int reason) {
+        onUnselect();
+    }
+
+    @Override
+    public void onRelease() {
+        if (released) return;
+        released = true;
+        provider.setSelected(routeId, false);
+        executor.execute(this::disconnect);
+        executor.shutdown();
+    }
+
+    private void disconnect() {
+        try {
+            chromecast.disconnect();
+        } catch (IOException e) {
+            Log.w(TAG, "Error closing Cast volume connection", e);
+        }
     }
 }
