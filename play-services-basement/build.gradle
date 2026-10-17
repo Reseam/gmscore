@@ -30,6 +30,7 @@ android {
         minSdkVersion androidMinSdk
         targetSdkVersion androidTargetSdk
         buildConfigField "int", "VERSION_CODE", "$appVersionCode"
+        buildConfigField "String", "VENDOR_GROUP_ID", "\"$vendorGroupId\""
         consumerProguardFile 'consumer-rules.pro'
     }
 

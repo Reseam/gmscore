@@ -18,16 +18,21 @@ package com.google.android.gms.cast.media;
 
 import org.microg.gms.cast.CastMediaRouteProvider;
 
-import android.util.Log;
-
 import androidx.mediarouter.media.MediaRouteProvider;
 import androidx.mediarouter.media.MediaRouteProviderService;
 
 public class CastMediaRouteProviderService extends MediaRouteProviderService {
-    private static final String TAG = CastMediaRouteProviderService.class.getSimpleName();
+    private CastMediaRouteProvider provider;
 
     @Override
     public MediaRouteProvider onCreateMediaRouteProvider() {
-        return new CastMediaRouteProvider(this);
+        provider = new CastMediaRouteProvider(this);
+        return provider;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (provider != null) provider.onDiscoveryRequestChanged(null);
+        super.onDestroy();
     }
 }

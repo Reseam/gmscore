@@ -19,6 +19,7 @@ package com.google.android.gms.auth;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
+import org.microg.gms.auth.AuthConstants;
 
 public class TokenActivity extends Activity {
     private static final String TAG = "GmsAuthTokenActivity";
@@ -30,7 +31,7 @@ public class TokenActivity extends Activity {
         extras.get("KEY");
         Log.d(TAG, extras.toString());
         /*AccountManager accountManager = AccountManager.get(this);
-        accountManager.getAuthToken(new Account(extras.getString("authAccount"), "com.google"), extras.getString("service"), extras.getBundle("callerExtras"), this, new AccountManagerCallback<Bundle>() {
+        accountManager.getAuthToken(new Account(extras.getString("authAccount"), AuthConstants.DEFAULT_ACCOUNT_TYPE), extras.getString("service"), extras.getBundle("callerExtras"), this, new AccountManagerCallback<Bundle>() {
             @Override
             public void run(AccountManagerFuture<Bundle> future) {
                 try {

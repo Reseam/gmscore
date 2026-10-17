@@ -39,6 +39,8 @@ buildscript {
 
     ext.androidBuildVersionTools = '35.0.0'
 
+    ext.vendorGroupId = 'app.reseam'
+
     ext.androidMinSdk = 19
     ext.androidTargetSdk = 29
     ext.androidCompileSdk = 35
@@ -100,10 +102,12 @@ if (!ignoreGit) {
     }
   }
 }
+def forkRevision = gitVersionBase.contains('-r') ? Integer.parseInt(gitVersionBase.substring(gitVersionBase.lastIndexOf('-r') + 2)) : 0
+assert forkRevision < 10 : "Fork revision -r$forkRevision would overflow into the next version code"
 def ourVersionBase = gitVersionBase.substring(0, gitVersionBase.lastIndexOf('.'))
 def ourVersionMinor = Integer.parseInt(ourVersionBase.substring(ourVersionBase.lastIndexOf('.') + 1))
-def ourGmsVersionCode = gmsVersionCode * 1000 + ourVersionMinor * 2  + (gitCommitCount > 0 || gitDirty ? 1 : 0)
-def ourGmsVersionName = "$ourVersionBase.$gmsVersionCode" + (gitCommitCount > 0 && !gitDirty ? "-$gitCommitCount" : "") + (gitDirty ? "-dirty" : "") + (gitCommitCount > 0 && !gitDirty ? " ($gitCommitId)" : "")
+def ourGmsVersionCode = gmsVersionCode * 1000 + ourVersionMinor * 20 + forkRevision * 2 + (gitCommitCount > 0 || gitDirty ? 1 : 0)
+def ourGmsVersionName = "$ourVersionBase.$gmsVersionCode" + (forkRevision > 0 ? "-r$forkRevision" : "") + (gitCommitCount > 0 && !gitDirty ? "-$gitCommitCount" : "") + (gitDirty ? "-dirty" : "") + (gitCommitCount > 0 && !gitDirty ? " ($gitCommitId)" : "")
 def ourVendingVersionCode = 80000000 + vendingVersionCode * 100 + ourVersionMinor * 2  + (gitCommitCount > 0 || gitDirty ? 1 : 0)
 def ourVendingVersionName = "$ourVersionBase.$vendingVersionCode" + (gitCommitCount > 0 && !gitDirty ? "-$gitCommitCount" : "") + (gitDirty ? "-dirty" : "") + (gitCommitCount > 0 && !gitDirty ? " ($gitCommitId)" : "")
 logger.lifecycle('Starting build for GMS version {} ({})...', ourGmsVersionName, ourGmsVersionCode)

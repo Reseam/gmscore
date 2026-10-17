@@ -9,4 +9,5 @@ interface IMediaRouterCallback {
     void onRouteSelected(String routeId, in Bundle extras) = 3;
     void unknown(String routeId, in Bundle extras) = 4;
     void onRouteUnselected(String routeId, in Bundle extras, int reason) = 5;
+    int getSupportedVersion() = 6;
 }
