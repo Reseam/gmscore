@@ -136,6 +136,8 @@
         android:protectionLevel="signature"/>
     <uses-permission android:name="${vendorGroupId}.android.gms.auth.permission.GOOGLE_ACCOUNT_CHANGE" />
 
+    <!-- Play Protect blocks sideloaded apps that request it; no Reseam-patched app uses the SMS Retriever API. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
