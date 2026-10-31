@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Cossale <hello@auna.li>
+ * SPDX-FileCopyrightText: 2026 Reseam contributors <https://reseam.app>
  * SPDX-License-Identifier: Apache-2.0
  */
 
