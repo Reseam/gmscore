@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013-2017 microG Project Team
- * Copyright (C) 2026 Cossale <hello@auna.li>
+ * Copyright (C) 2026 Reseam contributors <https://reseam.app>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
