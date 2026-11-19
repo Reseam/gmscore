@@ -4,7 +4,7 @@ export GRADLE_OPTS := "-Xmx1g"
 gradle := "./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx3g"
 apksigner := env_var("ANDROID_HOME") / "build-tools/35.0.0/apksigner"
 apks := "play-services-core/build/outputs/apk"
-reseam_version := "0.28.0"
+reseam_version := "0.42.2"
 
 check:
     {{ gradle }} :play-services-core:assembleMapboxUserDebug
